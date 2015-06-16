@@ -59,9 +59,11 @@ class Trashbin {
 		$uid = \OC\Files\Filesystem::getOwner($filename);
 		\OC\Files\Filesystem::initMountPoints($uid);
 		if ($uid != \OCP\User::getUser()) {
-			$info = \OC\Files\Filesystem::getFileInfo($filename);
+			/** @var \OC\Files\Storage\Storage $storage */
+			list($storage, $internalPath) = \OC\Files\Filesystem::resolvePath($filename);
+			$fileId = $storage->getCache()->getId($internalPath);
 			$ownerView = new \OC\Files\View('/' . $uid . '/files');
-			$filename = $ownerView->getPath($info['fileid']);
+			$filename = $ownerView->getPath($fileId);
 		}
 		return array($uid, $filename);
 	}
