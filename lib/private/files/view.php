@@ -1145,6 +1145,7 @@ class View {
 		if (Cache\Scanner::isPartialFile($path)) {
 			return $this->getPartFileInfo($path);
 		}
+		$relativePath = $path;
 		$path = Filesystem::normalizePath($this->fakeRoot . '/' . $path);
 
 		$mount = Filesystem::getMountManager()->find($path);
@@ -1154,6 +1155,7 @@ class View {
 		if ($storage) {
 			$cache = $storage->getCache($internalPath);
 
+			$this->lockFile($relativePath, ILockingProvider::LOCK_SHARED);
 			$data = $cache->get($internalPath);
 			$watcher = $storage->getWatcher($internalPath);
 
@@ -1169,6 +1171,7 @@ class View {
 				$this->updater->propagate($path);
 				$data = $cache->get($internalPath);
 			}
+			$this->unlockFile($relativePath, ILockingProvider::LOCK_SHARED);
 
 			if ($data and isset($data['fileid'])) {
 				// upgrades from oc6 or lower might not have the permissions set in the file cache
@@ -1228,6 +1231,8 @@ class View {
 			$cache = $storage->getCache($internalPath);
 			$user = \OC_User::getUser();
 
+			$this->lockFile($directory, ILockingProvider::LOCK_SHARED);
+
 			$data = $cache->get($internalPath);
 			$watcher = $storage->getWatcher($internalPath);
 			if (!$data or $data['size'] === -1) {
@@ -1248,6 +1253,9 @@ class View {
 			 */
 			$files = array();
 			$contents = $cache->getFolderContentsById($folderId); //TODO: mimetype_filter
+
+			$this->unlockFile($directory, ILockingProvider::LOCK_SHARED);
+
 			foreach ($contents as $content) {
 				if ($content['permissions'] === 0) {
 					$content['permissions'] = $storage->getPermissions($content['path']);
@@ -1779,7 +1787,7 @@ class View {
 	 * @return bool False if the path is excluded from locking, true otherwise
 	 */
 	public function unlockFile($path, $type) {
-		$path = rtrim($path, '/');
+		$path = '/' . trim($path, '/');
 
 		$absolutePath = $this->getAbsolutePath($path);
 		if (!$this->shouldLockFile($absolutePath)) {
